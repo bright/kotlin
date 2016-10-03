@@ -61,7 +61,8 @@
 - KT-10095 Support "Show expression type" in variable declaration position
 - KT-10588 Show smart cast information in "Show expression type"
 - KT-11310, KT-8803 Use short names in Show Expression Type
-
+- [`KT-13976`](https://youtrack.jetbrains.com/issue/KT-13976) Search Everywhere: Render function parameter types
+- [`KT-13977`](https://youtrack.jetbrains.com/issue/KT-13977) Search Everywhere: Render extension type in prefix position
 
 #### IDE. Code Completion
 
