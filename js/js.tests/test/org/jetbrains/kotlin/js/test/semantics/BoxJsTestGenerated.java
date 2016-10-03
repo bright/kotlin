@@ -3360,6 +3360,39 @@ public class BoxJsTestGenerated extends AbstractBoxJsTest {
             String fileName = KotlinTestUtils.navigationMetadata("js/js.translator/testData/box/inheritance/withInitializeMethod.kt");
             doTest(fileName);
         }
+
+        @TestMetadata("js/js.translator/testData/box/inheritance/interfaces")
+        @TestDataPath("$PROJECT_ROOT")
+        @RunWith(JUnit3RunnerWithInners.class)
+        public static class Interfaces extends AbstractBoxJsTest {
+            @TestMetadata("abstractClassInheritingDefaultMethod.kt")
+            public void testAbstractClassInheritingDefaultMethod() throws Exception {
+                String fileName = KotlinTestUtils.navigationMetadata("js/js.translator/testData/box/inheritance/interfaces/abstractClassInheritingDefaultMethod.kt");
+                doTest(fileName);
+            }
+
+            public void testAllFilesPresentInInterfaces() throws Exception {
+                KotlinTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("js/js.translator/testData/box/inheritance/interfaces"), Pattern.compile("^([^_](.+))\\.kt$"), true);
+            }
+
+            @TestMetadata("withDefaultMethod.kt")
+            public void testWithDefaultMethod() throws Exception {
+                String fileName = KotlinTestUtils.navigationMetadata("js/js.translator/testData/box/inheritance/interfaces/withDefaultMethod.kt");
+                doTest(fileName);
+            }
+
+            @TestMetadata("withDefaultMethodFromSuperInterface.kt")
+            public void testWithDefaultMethodFromSuperInterface() throws Exception {
+                String fileName = KotlinTestUtils.navigationMetadata("js/js.translator/testData/box/inheritance/interfaces/withDefaultMethodFromSuperInterface.kt");
+                doTest(fileName);
+            }
+
+            @TestMetadata("withDefaultProperty.kt")
+            public void testWithDefaultProperty() throws Exception {
+                String fileName = KotlinTestUtils.navigationMetadata("js/js.translator/testData/box/inheritance/interfaces/withDefaultProperty.kt");
+                doTest(fileName);
+            }
+        }
     }
 
     @TestMetadata("js/js.translator/testData/box/initialize")

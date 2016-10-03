@@ -460,11 +460,12 @@ public final class JsAstUtils {
 
     @NotNull
     public static JsInvocation defineProperty(
+            @NotNull JsExpression receiver,
             @NotNull String name,
-            @NotNull JsObjectLiteral value,
-            @NotNull TranslationContext context
+            @NotNull JsExpression value,
+            @NotNull JsProgram program
     ) {
-        return new JsInvocation(DEFINE_PROPERTY, JsLiteral.THIS, context.program().getStringLiteral(name), value);
+        return new JsInvocation(DEFINE_PROPERTY.deepCopy(), receiver, program.getStringLiteral(name), value);
     }
 
     @NotNull
@@ -543,5 +544,22 @@ public final class JsAstUtils {
 
         JsUnaryOperation unary = (JsUnaryOperation) expression;
         return unary.getOperator() == JsUnaryOperator.VOID;
+    }
+
+    @NotNull
+    public static JsStatement defineGetter(
+            @NotNull JsProgram program,
+            @NotNull JsExpression receiver,
+            @NotNull String name,
+            @NotNull JsExpression body
+    ) {
+        JsObjectLiteral propertyLiteral = new JsObjectLiteral(true);
+        propertyLiteral.getPropertyInitializers().add(new JsPropertyInitializer(new JsNameRef("get"), body));
+        return defineProperty(receiver, name, propertyLiteral, program).makeStmt();
+    }
+
+    @NotNull
+    public static JsExpression prototypeOf(@NotNull JsExpression expression) {
+        return pureFqn("prototype", expression);
     }
 }

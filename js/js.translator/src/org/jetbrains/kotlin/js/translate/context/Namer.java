@@ -88,8 +88,6 @@ public final class Namer {
     private static final String BACKING_FIELD_PREFIX = "$";
     private static final String DELEGATE = "$delegate";
 
-    private static final String SUPER_METHOD_NAME = "baseInitializer";
-
     private static final String ROOT_PACKAGE = "_";
 
     private static final String RECEIVER_PARAMETER_NAME = "$receiver";
@@ -107,6 +105,11 @@ public final class Namer {
     private static final JsNameRef JS_OBJECT_CREATE_FUNCTION = new JsNameRef("create", JS_OBJECT);
 
     public static final String LOCAL_MODULE_PREFIX = "$module$";
+    public static final String METADATA = "$metadata$";
+    public static final String METADATA_SUPERTYPES = "baseClasses";
+
+    public static final String OBJECT_INSTANCE_VAR_SUFFIX = "_instance";
+    public static final String OBJECT_INSTANCE_FUNCTION_SUFFIX = "_getInstance";
 
     public static boolean isUndefined(@NotNull JsExpression expr) {
         if (expr instanceof JsPrefixOperation) {
@@ -140,11 +143,6 @@ public final class Namer {
     @NotNull
     public static String getRootPackageName() {
         return ROOT_PACKAGE;
-    }
-
-    @NotNull
-    public static JsNameRef superMethodNameRef(@NotNull JsName superClassJsName) {
-        return pureFqn(SUPER_METHOD_NAME, superClassJsName.makeRef());
     }
 
     @NotNull

@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.descriptors.CallableDescriptor
 import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
 import org.jetbrains.kotlin.js.translate.context.Namer.getCapturedVarAccessor
+import org.jetbrains.kotlin.js.translate.utils.JsAstUtils
 import org.jetbrains.kotlin.js.translate.utils.JsDescriptorUtils
 import org.jetbrains.kotlin.js.translate.utils.TranslationUtils
 import org.jetbrains.kotlin.resolve.BindingContextUtils.isVarCapturedInClosure
@@ -47,8 +48,30 @@ object NativeVariableAccessCase : VariableAccessCase() {
 
 object DefaultVariableAccessCase : VariableAccessCase() {
     override fun VariableAccessInfo.noReceivers(): JsExpression {
+        val variableDescriptor = this.variableDescriptor
+        if (variableDescriptor is PropertyDescriptor &&
+            !JsDescriptorUtils.isSimpleFinalProperty(variableDescriptor) &&
+            context.isFromCurrentModule(variableDescriptor)
+        ) {
+            return if (isGetAccess()) {
+                val getter = JsAstUtils.pureFqn(context.getInnerNameForDescriptor(variableDescriptor.getter!!), null)
+                JsInvocation(getter)
+            }
+            else {
+                val setter = JsAstUtils.pureFqn(context.getInnerNameForDescriptor(variableDescriptor.setter!!), null)
+                JsInvocation(setter, value!!)
+            }
+        }
+
         val functionRef = context.aliasOrValue(callableDescriptor) {
-            context.getQualifiedReference(variableDescriptor)
+            if (context.isFromCurrentModule(variableDescriptor)) {
+                JsAstUtils.pureFqn(context.getInnerNameForDescriptor(variableDescriptor), null)
+            }
+            else {
+                val qualifier = context.getInnerNameForDescriptor(variableDescriptor.containingDeclaration)
+                val name = context.getNameForDescriptor(variableDescriptor)
+                JsNameRef(name, JsAstUtils.pureFqn(qualifier, null))
+            }
         }
 
         val ref =

@@ -84,10 +84,7 @@ object DefaultFunctionCallCase : FunctionCallCase() {
             return JsInvocation(JsNameRef(functionName), argumentsInfo.translateArguments)
         }
 
-        val functionRef = context.aliasOrValue(callableDescriptor) {
-            val qualifierForFunction = context.getQualifierForDescriptor(it)
-            pureFqn(functionName, qualifierForFunction)
-        }
+        val functionRef = context.aliasOrValue(callableDescriptor) { pureFqn(context.getInnerNameForDescriptor(it), null) }
         return JsInvocation(functionRef, argumentsInfo.translateArguments)
     }
 
@@ -221,8 +218,12 @@ object ConstructorCallCase : FunctionCallCase() {
     private inline fun FunctionCallInfo.doTranslate(
             getArguments: CallArgumentTranslator.ArgumentsInfo.() -> List<JsExpression>
     ): JsExpression {
-        val fqName = context.getQualifiedReference(callableDescriptor)
-        val functionRef = if (isNative()) fqName else context.aliasOrValue(callableDescriptor) { fqName }
+        val functionRef = if (isNative()) {
+            context.getQualifiedReference(callableDescriptor)
+        }
+        else {
+            context.aliasOrValue(callableDescriptor) { context.getInnerNameForDescriptor(callableDescriptor).makeRef() }
+        }
 
         val invocationArguments = mutableListOf<JsExpression>()
 

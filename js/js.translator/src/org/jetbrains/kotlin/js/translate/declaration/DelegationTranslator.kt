@@ -175,7 +175,7 @@ class DelegationTranslator(
             return generateDelegateAccessor(setterDescriptor, generateDelegateSetterFunction(setterDescriptor))
         }
 
-        properties.addGetterAndSetter(descriptor, context(), ::generateDelegateGetter, ::generateDelegateSetter)
+        properties.addGetterAndSetter(descriptor, ::generateDelegateGetter, ::generateDelegateSetter)
     }
 
 

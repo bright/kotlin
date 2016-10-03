@@ -27,25 +27,24 @@ import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.containers.hash.LinkedHashMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.builtins.ReflectionTypes;
 import org.jetbrains.kotlin.descriptors.*;
-import org.jetbrains.kotlin.descriptors.impl.TypeAliasConstructorDescriptor;
+import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor;
 import org.jetbrains.kotlin.js.config.JsConfig;
 import org.jetbrains.kotlin.js.config.LibrarySourcesConfig;
 import org.jetbrains.kotlin.js.translate.context.generator.Generator;
 import org.jetbrains.kotlin.js.translate.context.generator.Rule;
 import org.jetbrains.kotlin.js.translate.intrinsic.Intrinsics;
 import org.jetbrains.kotlin.js.translate.utils.JsAstUtils;
+import org.jetbrains.kotlin.js.translate.utils.ManglingUtils;
 import org.jetbrains.kotlin.name.FqName;
+import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.BindingTrace;
 import org.jetbrains.kotlin.resolve.DescriptorUtils;
 import org.jetbrains.kotlin.resolve.calls.util.FakeCallableDescriptorForObject;
+import org.jetbrains.kotlin.resolve.descriptorUtil.DescriptorUtilsKt;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.jetbrains.kotlin.js.translate.utils.AnnotationsUtils.*;
 import static org.jetbrains.kotlin.js.translate.utils.JsAstUtils.pureFqn;
@@ -65,7 +64,9 @@ public final class StaticContext {
         Namer namer = Namer.newInstance(program.getRootScope());
         Intrinsics intrinsics = new Intrinsics();
         StandardClasses standardClasses = StandardClasses.bindImplementations(namer.getKotlinScope());
-        return new StaticContext(program, bindingTrace, namer, intrinsics, standardClasses, program.getRootScope(), config, moduleDescriptor);
+        JsFunction rootFunction = JsAstUtils.createFunctionWithEmptyBody(program.getScope());
+        return new StaticContext(program, rootFunction, bindingTrace, namer, intrinsics, standardClasses, program.getRootScope(), config,
+                                 moduleDescriptor);
     }
 
     @NotNull
@@ -83,13 +84,12 @@ public final class StaticContext {
     private final StandardClasses standardClasses;
 
     @NotNull
-    private final ReflectionTypes reflectionTypes;
-
-    @NotNull
     private final JsScope rootScope;
 
     @NotNull
     private final Generator<JsName> names = new NameGenerator();
+    @NotNull
+    private final Generator<JsName> innerNames = new InnerNameGenerator();
     @NotNull
     private final Map<FqName, JsName> packageNames = Maps.newHashMap();
     @NotNull
@@ -98,6 +98,8 @@ public final class StaticContext {
     private final Generator<JsExpression> qualifiers = new QualifierGenerator();
     @NotNull
     private final Generator<Boolean> qualifierIsNull = new QualifierIsNullGenerator();
+    @NotNull
+    private final Generator<JsName> objectInstanceNames = new ObjectInstanceNameGenerator();
 
     @NotNull
     private final Map<JsScope, JsFunction> scopeToFunction = Maps.newHashMap();
@@ -116,9 +118,34 @@ public final class StaticContext {
 
     private Map<String, JsName> readOnlyImportedModules;
 
+    @NotNull
+    private final ModuleDescriptor currentModule;
+
+    @NotNull
+    private JsFunction rootFunction;
+
+    @NotNull
+    private final List<JsStatement> declarationStatements = new ArrayList<JsStatement>();
+
+    @NotNull
+    private final List<JsStatement> importStatements = new ArrayList<JsStatement>();
+
+    @NotNull
+    private final List<JsStatement> exportStatements = new ArrayList<JsStatement>();
+
+    @NotNull
+    private final Set<ClassDescriptor> classes = new HashSet<ClassDescriptor>();
+
+    @NotNull
+    private final ExportedPackage rootPackage = new ExportedPackage("");
+
+    @NotNull
+    private final JsObjectLiteral exportObject = rootPackage.objectLiteral;
+
     //TODO: too many parameters in constructor
     private StaticContext(
             @NotNull JsProgram program,
+            @NotNull JsFunction rootFunction,
             @NotNull BindingTrace bindingTrace,
             @NotNull Namer namer,
             @NotNull Intrinsics intrinsics,
@@ -128,13 +155,15 @@ public final class StaticContext {
             @NotNull ModuleDescriptor moduleDescriptor
     ) {
         this.program = program;
+        this.rootFunction = rootFunction;
         this.bindingTrace = bindingTrace;
         this.namer = namer;
         this.intrinsics = intrinsics;
         this.rootScope = rootScope;
         this.standardClasses = standardClasses;
         this.config = config;
-        this.reflectionTypes = new ReflectionTypes(moduleDescriptor);
+        this.currentModule = moduleDescriptor;
+        this.rootFunction = rootFunction;
     }
 
     @NotNull
@@ -163,11 +192,6 @@ public final class StaticContext {
     }
 
     @NotNull
-    public ReflectionTypes getReflectionTypes() {
-        return reflectionTypes;
-    }
-
-    @NotNull
     private JsScope getRootScope() {
         return rootScope;
     }
@@ -191,6 +215,7 @@ public final class StaticContext {
     public JsFunction getFunctionWithScope(@NotNull CallableDescriptor descriptor) {
         JsScope scope = getScopeForDescriptor(descriptor);
         JsFunction function = scopeToFunction.get(scope);
+        function.setName(rootFunction.getScope().declareFreshName(ManglingUtils.getSuggestedName(descriptor)));
         assert scope.equals(function.getScope()) : "Inconsistency.";
         return function;
     }
@@ -219,6 +244,20 @@ public final class StaticContext {
     public JsName getNameForDescriptor(@NotNull DeclarationDescriptor descriptor) {
         JsName name = names.get(descriptor.getOriginal());
         assert name != null : "Must have name for descriptor";
+        return name;
+    }
+
+    @NotNull
+    public JsName getInnerNameForDescriptor(@NotNull DeclarationDescriptor descriptor) {
+        JsName name = innerNames.get(descriptor.getOriginal());
+        assert name != null : "Must have inner name for descriptor";
+        return name;
+    }
+
+    @NotNull
+    public JsName getNameForObjectInstance(@NotNull ClassDescriptor descriptor) {
+        JsName name = objectInstanceNames.get(descriptor.getOriginal());
+        assert name != null : "Must have inner name for object instance";
         return name;
     }
 
@@ -262,6 +301,62 @@ public final class StaticContext {
     @NotNull
     public JsConfig getConfig() {
         return config;
+    }
+
+    private final class InnerNameGenerator extends Generator<JsName> {
+        public InnerNameGenerator() {
+            addRule(new Rule<JsName>() {
+                @Nullable
+                @Override
+                public JsName apply(@NotNull DeclarationDescriptor descriptor) {
+                    String suggestedName;
+                    if (descriptor instanceof LocalVariableDescriptor || descriptor instanceof ParameterDescriptor) {
+                        return getNameForDescriptor(descriptor);
+                    }
+                    if (descriptor instanceof PropertyGetterDescriptor) {
+                        PropertyGetterDescriptor getter = (PropertyGetterDescriptor) descriptor;
+                        suggestedName = "get_" + ManglingUtils.getSuggestedName(getter.getCorrespondingProperty());
+                    }
+                    else if (descriptor instanceof PropertySetterDescriptor) {
+                        PropertySetterDescriptor setter = (PropertySetterDescriptor) descriptor;
+                        suggestedName = "set_" + ManglingUtils.getSuggestedName(setter.getCorrespondingProperty());
+                    }
+                    else if (descriptor instanceof ConstructorDescriptor) {
+                        if (((ConstructorDescriptor) descriptor).isPrimary()) {
+                            return getInnerNameForDescriptor(((ConstructorDescriptor) descriptor).getConstructedClass());
+                        }
+                        suggestedName =ManglingUtils.getSuggestedName(descriptor) + "_init";
+                    }
+                    else {
+                        suggestedName = ManglingUtils.getSuggestedName(descriptor);
+                    }
+                    JsName result = rootFunction.getScope().declareFreshName(suggestedName);
+                    ModuleDescriptor module = DescriptorUtilsKt.getModule(descriptor);
+                    if (module != currentModule) {
+                        importStatements.add(JsAstUtils.newVar(result, getQualifiedReference(descriptor)));
+                    }
+                    return result;
+                }
+            });
+        }
+    }
+
+    private final class ObjectInstanceNameGenerator extends Generator<JsName> {
+        public ObjectInstanceNameGenerator() {
+            addRule(new Rule<JsName>() {
+                @Nullable
+                @Override
+                public JsName apply(@NotNull DeclarationDescriptor descriptor) {
+                    String suggested = ManglingUtils.getSuggestedName(descriptor) + Namer.OBJECT_INSTANCE_FUNCTION_SUFFIX;
+                    JsName result = rootFunction.getScope().declareFreshName(suggested);
+                    ModuleDescriptor module = DescriptorUtilsKt.getModule(descriptor);
+                    if (module != currentModule) {
+                        importStatements.add(JsAstUtils.newVar(result, getQualifiedReference(descriptor)));
+                    }
+                    return result;
+                }
+            });
+        }
     }
 
     private final class NameGenerator extends Generator<JsName> {
@@ -699,5 +794,107 @@ public final class StaticContext {
     @NotNull
     public Map<ClassDescriptor, List<DeferredCallSite>> getDeferredCallSites() {
         return deferredCallSites;
+    }
+
+    @NotNull
+    public JsFunction getRootFunction() {
+        return rootFunction;
+    }
+
+    @NotNull
+    public List<JsStatement> getDeclarationStatements() {
+        return declarationStatements;
+    }
+
+    public void addRootStatement(@NotNull JsStatement statement) {
+        declarationStatements.add(statement);
+    }
+
+    public void addClass(@NotNull ClassDescriptor classDescriptor) {
+        classes.add(classDescriptor);
+    }
+
+    public void export(@NotNull DeclarationDescriptor descriptor) {
+        DeclarationDescriptor container = descriptor.getContainingDeclaration();
+        if (!(container instanceof PackageFragmentDescriptor)) {
+            throw new IllegalArgumentException("Declaration " + descriptor + " is not a top-level declaration");
+        }
+
+        PackageFragmentDescriptor packageDescriptor = (PackageFragmentDescriptor) container;
+        ExportedPackage exportedPackage = rootPackage;
+        for (Name packageName : packageDescriptor.getFqName().pathSegments()) {
+            exportedPackage = exportedPackage.getSubpackage(packageName.asString());
+        }
+
+        JsExpression initializerExpr = DeclarationExporter.exportDeclaration(this, descriptor, exportStatements);
+        if (initializerExpr != null) {
+            JsPropertyInitializer initializer = new JsPropertyInitializer(
+                    getNameForDescriptor(descriptor).makeRef(), initializerExpr);
+            exportedPackage.objectLiteral.getPropertyInitializers().add(initializer);
+        }
+    }
+
+    @NotNull
+    public ModuleDescriptor getCurrentModule() {
+        return currentModule;
+    }
+
+    public void postProcess() {
+        rootFunction.getBody().getStatements().addAll(importStatements);
+        addClassPrototypes();
+        rootFunction.getBody().getStatements().addAll(declarationStatements);
+
+        JsName rootPackageName = rootFunction.getScope().declareName(Namer.getRootPackageName());
+        rootFunction.getBody().getStatements().add(JsAstUtils.newVar(rootPackageName, exportObject));
+        rootFunction.getBody().getStatements().addAll(exportStatements);
+    }
+
+    private void addClassPrototypes() {
+        Set<ClassDescriptor> visited = new HashSet<ClassDescriptor>();
+        for (ClassDescriptor cls : classes) {
+            addClassPrototypes(cls, visited);
+        }
+    }
+
+    private void addClassPrototypes(@NotNull ClassDescriptor cls, @NotNull Set<ClassDescriptor> visited) {
+        if (DescriptorUtilsKt.getModule(cls) != currentModule) return;
+        if (!visited.add(cls)) return;
+
+        ClassDescriptor superclass = DescriptorUtilsKt.getSuperClassNotAny(cls);
+        if (superclass != null) {
+            addClassPrototypes(superclass, visited);
+
+            List<JsStatement> statements = rootFunction.getBody().getStatements();
+
+            JsExpression superPrototype = JsAstUtils.prototypeOf(new JsNameRef(getInnerNameForDescriptor(superclass)));
+            JsExpression superPrototypeInstance = new JsInvocation(new JsNameRef("create", "Object"), superPrototype);
+            JsExpression classRef = new JsNameRef(getInnerNameForDescriptor(cls));
+            JsExpression prototype = JsAstUtils.prototypeOf(classRef);
+            statements.add(JsAstUtils.assignment(prototype, superPrototypeInstance).makeStmt());
+
+            JsExpression constructorRef = new JsNameRef("constructor", prototype.deepCopy());
+            statements.add(JsAstUtils.assignment(constructorRef, classRef.deepCopy()).makeStmt());
+        }
+    }
+
+    private static class ExportedPackage {
+        @NotNull final String name;
+        @NotNull final Map<String, ExportedPackage> subpackages = new HashMap<String, ExportedPackage>();
+        @NotNull final JsObjectLiteral objectLiteral = new JsObjectLiteral(true);
+
+        public ExportedPackage(@NotNull String name) {
+            this.name = name;
+        }
+
+        @NotNull
+        public ExportedPackage getSubpackage(@NotNull String name) {
+            ExportedPackage subpackage = subpackages.get(name);
+            if (subpackage == null) {
+                subpackage = new ExportedPackage(name);
+                subpackages.put(name, subpackage);
+                objectLiteral.getPropertyInitializers().add(new JsPropertyInitializer(new JsNameRef(name), subpackage.objectLiteral));
+            }
+            return subpackage;
+        }
     }
 }

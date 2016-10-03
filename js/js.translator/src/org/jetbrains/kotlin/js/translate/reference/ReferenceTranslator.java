@@ -17,15 +17,15 @@
 package org.jetbrains.kotlin.js.translate.reference;
 
 import com.google.dart.compiler.backend.js.ast.JsExpression;
+import com.google.dart.compiler.backend.js.ast.JsInvocation;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor;
-import org.jetbrains.kotlin.descriptors.FunctionDescriptor;
-import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor;
-import org.jetbrains.kotlin.descriptors.VariableDescriptor;
+import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.js.translate.context.TranslationContext;
+import org.jetbrains.kotlin.js.translate.utils.JsAstUtils;
 import org.jetbrains.kotlin.psi.KtExpression;
 import org.jetbrains.kotlin.psi.KtQualifiedExpression;
 import org.jetbrains.kotlin.psi.KtSimpleNameExpression;
+import org.jetbrains.kotlin.resolve.DescriptorUtils;
 
 import static org.jetbrains.kotlin.js.translate.utils.BindingUtils.getDescriptorForReferenceExpression;
 import static org.jetbrains.kotlin.js.translate.utils.PsiUtils.getSelectorAsSimpleName;
@@ -57,7 +57,11 @@ public final class ReferenceTranslator {
                 return alias;
             }
         }
-        return context.getQualifiedReference(descriptor);
+        if (DescriptorUtils.isObject(descriptor)) {
+            JsExpression functionRef = JsAstUtils.pureFqn(context.getNameForObjectInstance((ClassDescriptor) descriptor), null);
+            return new JsInvocation(functionRef);
+        }
+        return JsAstUtils.pureFqn(context.getInnerNameForDescriptor(descriptor), null);
     }
 
     @NotNull
