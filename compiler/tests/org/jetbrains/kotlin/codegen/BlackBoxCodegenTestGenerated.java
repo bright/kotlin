@@ -14275,6 +14275,18 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
             doTest(fileName);
         }
 
+        @TestMetadata("callFromPrimaryWithNamedArgs.kt")
+        public void testCallFromPrimaryWithNamedArgs() throws Exception {
+            String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/codegen/box/secondaryConstructors/callFromPrimaryWithNamedArgs.kt");
+            doTest(fileName);
+        }
+
+        @TestMetadata("callFromPrimaryWithOptionalArgs.kt")
+        public void testCallFromPrimaryWithOptionalArgs() throws Exception {
+            String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/codegen/box/secondaryConstructors/callFromPrimaryWithOptionalArgs.kt");
+            doTest(fileName);
+        }
+
         @TestMetadata("callFromSubClass.kt")
         public void testCallFromSubClass() throws Exception {
             String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/codegen/box/secondaryConstructors/callFromSubClass.kt");
@@ -15019,12 +15031,6 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
         @TestMetadata("multipleSuperTraits.kt")
         public void testMultipleSuperTraits() throws Exception {
             String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/codegen/box/super/multipleSuperTraits.kt");
-            doTest(fileName);
-        }
-
-        @TestMetadata("superPrimaryConstructorWithOptionalArgs.kt")
-        public void testSuperPrimaryConstructorWithOptionalArgs() throws Exception {
-            String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/codegen/box/super/superPrimaryConstructorWithOptionalArgs.kt");
             doTest(fileName);
         }
 

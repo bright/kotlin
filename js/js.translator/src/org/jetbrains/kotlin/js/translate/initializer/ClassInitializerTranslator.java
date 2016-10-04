@@ -194,8 +194,11 @@ public final class ClassInitializerTranslator extends AbstractTranslator {
                     addCallToSuperMethod(arguments, initializer);
                 }
                 else {
-                    int padSize = superCall.getResultingDescriptor().getValueParameters().size() -
-                                  superCall.getCall().getValueArguments().size();
+                    int maxValueArgumentIndex = 0;
+                    for (ValueParameterDescriptor arg : superCall.getValueArguments().keySet()) {
+                        maxValueArgumentIndex = Math.max(maxValueArgumentIndex, arg.getIndex());
+                    }
+                    int padSize = superCall.getResultingDescriptor().getValueParameters().size() - maxValueArgumentIndex;
                     while (padSize-- > 0) {
                         arguments.add(Namer.getUndefinedExpression());
                     }
