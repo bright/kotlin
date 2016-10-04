@@ -6476,7 +6476,7 @@ public fun CharArray.toList(): List<Char> {
  * Returns a [MutableList] filled with all elements of this array.
  */
 public fun <T> Array<out T>.toMutableList(): MutableList<T> {
-    return ArrayList(this.asCollection())
+    return ArrayList<T>(this.asCollection())
 }
 
 /**
