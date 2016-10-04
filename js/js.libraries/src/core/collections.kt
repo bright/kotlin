@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 package kotlin.collections
-
+import kotlin.comparisons.*
 
 @library("copyToArray")
 public fun <reified T> Collection<T>.toTypedArray(): Array<T> = noImpl
@@ -41,3 +41,24 @@ public fun <T> setOf(element: T): Set<T> = hashSetOf(element)
  * specified value.
  */
 public fun <K, V> mapOf(pair: Pair<K, V>): Map<K, V> = hashMapOf(pair)
+
+
+
+internal object Collections {
+    internal fun <T: Comparable<T>> sort(list: MutableList<T>): Unit = kotlin.collections.sort(list, naturalOrder())
+
+    internal fun <T> sort(list: MutableList<T>, comparator: Comparator<in T>): Unit = kotlin.collections.sort(list, comparator)
+
+    internal fun <T> reverse(list: MutableList<T>): Unit {
+        val size = list.size
+        for (i in 0..(size / 2) - 1) {
+            val i2 = size - i - 1
+            val tmp = list[i]
+            list[i] = list[i2]
+            list[i2] = tmp
+        }
+    }
+}
+
+@library("collectionsSort")
+private fun <T> sort(list: MutableList<T>, comparator: Comparator<in T>): Unit = noImpl
