@@ -43,7 +43,7 @@ fun box(): String {
         method.invoke(c, "")
         return "fail 4"
     } catch (e: java.lang.reflect.InvocationTargetException) {
-        if (e.cause!!.message != "Mutating immutable collection") return "fail 5: ${e.cause!!.message}"
+        if (e.cause!!.message != "'remove' operation is not supported for read-only collection") return "fail 5: ${e.cause!!.message}"
     }
 
     return "OK"
