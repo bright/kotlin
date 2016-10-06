@@ -68,8 +68,10 @@ class DoubleColonExpressionResolver(
         val dataFlowAnalyzer: DataFlowAnalyzer,
         val reflectionTypes: ReflectionTypes,
         val typeResolver: TypeResolver,
-        val languageVersionSettings: LanguageVersionSettings
+        languageVersionSettings: LanguageVersionSettings
 ) {
+    private val expressionsSupported = languageVersionSettings.supportsFeature(LanguageFeature.BoundCallableReferences)
+
     private lateinit var expressionTypingServices: ExpressionTypingServices
 
     // component dependency cycle
@@ -132,7 +134,7 @@ class DoubleColonExpressionResolver(
                 !isWithoutValueArguments
             is KtDotQualifiedExpression ->
                 receiverExpression.canBeConsideredProperExpression() &&
-                selectorExpression?.let { it.canBeConsideredProperExpression() } ?: false
+                selectorExpression?.canBeConsideredProperExpression() ?: false
             else -> true
         }
     }
@@ -150,9 +152,6 @@ class DoubleColonExpressionResolver(
     }
 
     private fun shouldTryResolveLHSAsExpression(expression: KtDoubleColonExpression): Boolean {
-        // TODO: improve diagnostic when bound callable references are disabled
-        if (!languageVersionSettings.supportsFeature(LanguageFeature.BoundCallableReferences)) return false
-
         val lhs = expression.receiverExpression ?: return false
         return lhs.canBeConsideredProperExpression() && !expression.hasQuestionMarks /* TODO: test this */
     }
@@ -162,9 +161,15 @@ class DoubleColonExpressionResolver(
         return lhs != null && lhs.canBeConsideredProperType()
     }
 
+    private fun reportUnsupportedIfNeeded(expression: KtDoubleColonExpression, c: ExpressionTypingContext) {
+        if (!expressionsSupported) {
+            c.trace.report(UNSUPPORTED_FEATURE.on(expression.receiverExpression!!, LanguageFeature.BoundCallableReferences))
+        }
+    }
+
     private fun resolveDoubleColonLHS(doubleColonExpression: KtDoubleColonExpression, c: ExpressionTypingContext): DoubleColonLHS? {
         val resultForExpr = tryResolveLHS(doubleColonExpression, c, this::shouldTryResolveLHSAsExpression, this::resolveExpressionOnLHS)
-        if (resultForExpr != null) {
+        if (resultForExpr != null && expressionsSupported) {
             val lhs = resultForExpr.lhs as DoubleColonLHS.Expression?
             // If expression result is an object, we remember this and skip it here, because there are valid situations where
             // another type (representing another classifier) should win
@@ -182,6 +187,12 @@ class DoubleColonExpressionResolver(
                 // If we skipped an object expression result before and the type result is the same, this means that
                 // there were no other classifier except that object that could win. We prefer to treat the LHS as an expression here,
                 // to have a bound callable reference / class literal
+
+                if (doubleColonExpression is KtCallableReferenceExpression) {
+                    // Prohibit "Obj::member" in -language-version 1.0, but allow "Obj::class" (where "Obj" is an object declaration)
+                    reportUnsupportedIfNeeded(doubleColonExpression, c)
+                }
+
                 return resultForExpr.commit()
             }
             if (lhs != null) {
@@ -191,7 +202,11 @@ class DoubleColonExpressionResolver(
 
         // If the LHS could be resolved neither as an expression nor as a type, we should still type-check it to allow all diagnostics
         // to be reported and references to be resolved. For that, we commit one of the applicable traces here, preferring the expression
-        if (resultForExpr != null) return resultForExpr.commit()
+        if (resultForExpr != null) {
+            reportUnsupportedIfNeeded(doubleColonExpression, c)
+            return resultForExpr.commit()
+        }
+
         if (resultForType != null) return resultForType.commit()
 
         return null
