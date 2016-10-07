@@ -108,7 +108,7 @@ private class PluginURLClassLoader(urls: Array<URL>, parent: ClassLoader) : Clas
 
     override fun getResources(name: String) = childClassLoader.getResources(name)
 
-    private class SelfThenParentURLClassLoader(urls: Array<URL>, val onFail: ClassLoader) : URLClassLoader(urls, null) {
+    private class SelfThenParentURLClassLoader(urls: Array<URL>, val onFail: ClassLoader) : URLClassLoader(urls, onFail) {
 
         public override fun findClass(name: String): Class<*> {
             val loaded = findLoadedClass(name)
