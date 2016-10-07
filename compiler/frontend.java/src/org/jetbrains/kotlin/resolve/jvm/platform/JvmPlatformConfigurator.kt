@@ -77,7 +77,7 @@ object JvmPlatformConfigurator : PlatformConfigurator(
 ) {
 
     override fun configureModuleComponents(container: StorageComponentContainer) {
-        container.useImpl<ReflectionAPICallChecker>()
+        container.useImpl<JvmReflectionAPICallChecker>()
         container.useImpl<JavaSyntheticScopes>()
         container.useInstance(JavaSyntheticConstructorsProvider)
         container.useInstance(JvmTypeSpecificityComparator)
