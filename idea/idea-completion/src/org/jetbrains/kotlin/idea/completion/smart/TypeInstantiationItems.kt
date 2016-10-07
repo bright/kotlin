@@ -211,7 +211,10 @@ class TypeInstantiationItems(
                     val constructor = visibleConstructors.single()
                     val substitutor = TypeSubstitutor.create(fuzzyType.presentationType())
                     val substitutedConstructor = constructor.substitute(substitutor)
-                    DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderFunctionParameters(substitutedConstructor)
+                    if (substitutedConstructor != null)
+                        DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderFunctionParameters(substitutedConstructor)
+                    else
+                        "(...)"
                 }
 
                 else -> "(...)"
