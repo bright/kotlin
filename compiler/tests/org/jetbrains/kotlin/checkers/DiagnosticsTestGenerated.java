@@ -5946,6 +5946,12 @@ public class DiagnosticsTestGenerated extends AbstractDiagnosticsTest {
                 doTest(fileName);
             }
 
+            @TestMetadata("hiddenPropertyAccessors.kt")
+            public void testHiddenPropertyAccessors() throws Exception {
+                String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/diagnostics/tests/deprecated/hiddenPropertyAccessors.kt");
+                doTest(fileName);
+            }
+
             @TestMetadata("importJavaSamInterface.kt")
             public void testImportJavaSamInterface() throws Exception {
                 String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/diagnostics/tests/deprecated/importJavaSamInterface.kt");
