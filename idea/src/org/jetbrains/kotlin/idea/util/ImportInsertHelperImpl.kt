@@ -58,8 +58,8 @@ class ImportInsertHelperImpl(private val project: Project) : ImportInsertHelper(
         get() = ImportPathComparator
 
     override fun isImportedWithDefault(importPath: ImportPath, contextFile: KtFile): Boolean {
-        val moduleParameters = contextFile.findModuleDescriptor()
-        return importPath.isImported(moduleParameters.defaultImports, moduleParameters.effectivelyExcludedImports)
+        val moduleDescriptor = contextFile.findModuleDescriptor()
+        return importPath.isImported(moduleDescriptor.defaultImports, moduleDescriptor.effectivelyExcludedImports)
     }
 
     override fun mayImportOnShortenReferences(descriptor: DeclarationDescriptor): Boolean {
