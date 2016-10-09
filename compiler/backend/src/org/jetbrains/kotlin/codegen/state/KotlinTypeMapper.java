@@ -609,7 +609,8 @@ public class KotlinTypeMapper {
 
         DeclarationDescriptor functionParent = descriptor.getOriginal().getContainingDeclaration();
 
-        FunctionDescriptor functionDescriptor = unwrapFakeOverride(descriptor.getOriginal());
+        //TODO: do we actually need superCall filtering, what if use more specific signature for general calls?
+        FunctionDescriptor functionDescriptor = unwrapFakeOverride(descriptor.getOriginal(), superCall && !isJvm8Target);
 
         JvmMethodSignature signature;
         Type owner;

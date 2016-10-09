@@ -419,6 +419,10 @@ public class DescriptorUtils {
                containing instanceof ClassDescriptor && isTopLevelOrInnerClass((ClassDescriptor) containing);
     }
 
+    public static <D extends CallableMemberDescriptor> D unwrapFakeOverride(@NotNull D descriptor) {
+        return unwrapFakeOverride(descriptor, false);
+    }
+
     /**
      * Given a fake override, finds any declaration of it in the overridden descriptors. Keep in mind that there may be many declarations
      * of the fake override in the supertypes, this method finds just only one of them.
@@ -426,11 +430,24 @@ public class DescriptorUtils {
      */
     @NotNull
     @SuppressWarnings("unchecked")
-    public static <D extends CallableMemberDescriptor> D unwrapFakeOverride(@NotNull D descriptor) {
+    public static <D extends CallableMemberDescriptor> D unwrapFakeOverride(@NotNull D descriptor, boolean dontUnwrapClassFakeOverrideToInterface) {
         while (descriptor.getKind() == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
             Collection<? extends CallableMemberDescriptor> overridden = descriptor.getOverriddenDescriptors();
             if (overridden.isEmpty()) {
                 throw new IllegalStateException("Fake override should have at least one overridden descriptor: " + descriptor);
+            }
+
+            if (dontUnwrapClassFakeOverrideToInterface) {
+                CallableMemberDescriptor classCallable = null;
+                for (CallableMemberDescriptor callableMemberDescriptor : overridden) {
+                    if (!isInterface(callableMemberDescriptor.getContainingDeclaration())) {
+                        classCallable = callableMemberDescriptor;
+                    }
+                }
+                if (classCallable == null && !isInterface(descriptor.getContainingDeclaration())) {
+                    //Don't unwrap fake overrides from class to interface cause substituted override would be implicitly generated for target 1.6
+                    return descriptor;
+                }
             }
             descriptor = (D) overridden.iterator().next();
         }
